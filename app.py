@@ -1,4 +1,4 @@
-import streamlit as st
+import app as st
 import os
 import re
 import pypdfium2 as pdfium
