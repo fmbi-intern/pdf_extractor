@@ -1,0 +1,95 @@
+# ------------------------------
+# Operating System files
+# ------------------------------
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+.cache
+*.swp
+
+# ------------------------------
+# Node.js / JavaScript
+# ------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+dist/
+build/
+.env
+.env.local
+.env.*.local
+
+# ------------------------------
+# Python
+# ------------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.env
+*.venv
+venv/
+ENV/
+env/
+*.sqlite3
+*.egg-info/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ------------------------------
+# IDEs / Editors
+# ------------------------------
+# VS Code
+.vscode/
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.iws
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# ------------------------------
+# Logs
+# ------------------------------
+*.log
+logs/
+*.trace
+
+# ------------------------------
+# Temporary / Backup files
+# ------------------------------
+*.bak
+*.tmp
+*.swp
+*.swo
+
+# ------------------------------
+# Others
+# ------------------------------
+*.exe
+*.dll
+*.so
+*.dylib
+*.class
+*.jar
+*.war
+*.zip
+*.tar.gz
+all_pdf/
+Inspection Report - For BI System/v1/
+all_pdf.zip
+extractor.ipynb
