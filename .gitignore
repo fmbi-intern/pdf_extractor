@@ -90,6 +90,6 @@ logs/
 *.zip
 *.tar.gz
 all_pdf/
-"Inspection Report - For BI System/v1/"
+Inspection Report - For BI System/
 all_pdf.zip
 extractor.ipynb
