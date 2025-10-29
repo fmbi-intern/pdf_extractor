@@ -1,4 +1,6 @@
 ## Setup & Installation
 1. Create .venv
-2. install requirements.txt
-3. run streamlit (streamlit run app.py)
+2. Install requirements.txt
+3. Run streamlit (streamlit run app.py)
+
+python version: 3.13.5

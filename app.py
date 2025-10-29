@@ -1,5 +1,4 @@
-import app as st
-import os
+import streamlit as st
 import re
 import pypdfium2 as pdfium
 import pandas as pd
@@ -13,15 +12,16 @@ import time  # for smooth progress updates
 def extract_text_from_first_page(pdf_bytes):
     pdf = pdfium.PdfDocument(pdf_bytes)
     text_output = ""
-    
+
     if len(pdf) > 0:
-        first_page = pdf[0]  
+        first_page = pdf[0]
         textpage = first_page.get_textpage()
         text_output = textpage.get_text_bounded()
         textpage.close()
-    
+
     pdf.close()
     return text_output
+
 
 # -------------------------------
 # Pattern definitions
@@ -38,22 +38,23 @@ PATTERNS_TYPE_1 = {
     "Issue Date": r"Issue Date\s+([^\n]+)",
     "Inspection Date": r"Inspection Date\s+([^\n]+)",
     "Report Date": r"Report Date\s+([^\n]+)",
-    "Handover Date": r"Handover Date\s+([^\n]+)"
+    "Handover Date": r"Handover Date\s+([^\n]+)",
 }
 
 PATTERNS_TYPE_2 = {
     "Document No.": r"Document No\.\s+([^\n]+)",
     "Audit Title": r"Audit Title\s+([^\n]+)",
     "Site Name": r"Site Name\s+([^\n]+)",
-    "Location": r"Location\s+([\s\S]+?)\s+Contractor Present",  # keep multi-line capture
+    "Location": r"Location\s+([\s\S]+?)\s+Contractor Present",
     "Contractor Present": r"Contractor Present\s+([^\n]+)",
     "Contractor Name": r"Contractor Present\s+[^\n]+\s+Name\s+([^\n]+)",
     "Project PIC Present": r"Project PIC Present\s+([^\n]+)",
     "Project PIC Name": r"Project PIC Present\s+[^\n]+\s+Name\s+([^\n]+)",
     "Inspected by": r"Inspected by\s+([^\n]+)",
     "Inspection Date": r"Inspection Date\s+([^\n]+)",
-    "Prepared by": r"Prepared by\s+([^\n]+)"
+    "Prepared by": r"Prepared by\s+([^\n]+)",
 }
+
 
 # -------------------------------
 # Detect PDF type
@@ -65,6 +66,7 @@ def detect_document_type(text):
         return "type_1"
     else:
         return None
+
 
 # -------------------------------
 # Extract data by type
@@ -83,63 +85,80 @@ def extract_data_by_type(text, doc_type):
     data["Document Type"] = doc_type
     return data
 
+
 # -------------------------------
-# Streamlit app
+# Cached ZIP processor
+# -------------------------------
+@st.cache_data(show_spinner=False)
+def process_zip_file(uploaded_zip_bytes):
+    """Extract all PDFs and return two lists of dicts for type_1 and type_2."""
+    all_data_type_1 = []
+    all_data_type_2 = []
+
+    with zipfile.ZipFile(BytesIO(uploaded_zip_bytes)) as z:
+        pdf_files = [f for f in z.namelist() if f.lower().endswith(".pdf")]
+        total_files = len(pdf_files)
+
+        for pdf_name in pdf_files:
+            pdf_bytes = z.read(pdf_name)
+            text = extract_text_from_first_page(BytesIO(pdf_bytes))
+            doc_type = detect_document_type(text)
+            if doc_type is None:
+                continue
+
+            data = extract_data_by_type(text, doc_type)
+            data["Source File"] = pdf_name
+
+            if doc_type == "type_1":
+                all_data_type_1.append(data)
+            else:
+                all_data_type_2.append(data)
+
+    return all_data_type_1, all_data_type_2
+
+
+# -------------------------------
+# Streamlit App Layout
 # -------------------------------
 st.set_page_config(
     page_title="PDF Inspection Data Extractor",
-    layout="wide",  # this makes it full width
-    initial_sidebar_state="expanded"
+    layout="wide",
+    initial_sidebar_state="expanded",
 )
 
 st.title("PDF Inspection Data Extractor")
 
-uploaded_zip = st.file_uploader(
-    "Upload a ZIP file containing PDFs",
-    type="zip"
-)
+uploaded_zip = st.file_uploader("Upload a ZIP file containing PDFs", type="zip")
 
+# --- Run only when a ZIP is uploaded ---
 if uploaded_zip:
-    all_data_type_1 = []
-    all_data_type_2 = []
+    if "processed_data" not in st.session_state or st.session_state.get("last_uploaded") != uploaded_zip.name:
+        uploaded_bytes = uploaded_zip.read()
+        st.session_state.last_uploaded = uploaded_zip.name
 
-    with zipfile.ZipFile(uploaded_zip) as z:
-        pdf_files = [f for f in z.namelist() if f.lower().endswith(".pdf")]
-        total_files = len(pdf_files)
-
-        st.write(f"Found {total_files} PDF(s) in the ZIP file.")
-        
+        # Progress feedback
         progress_bar = st.progress(0)
         status_text = st.empty()
+        status_text.text("Processing PDFs...")
 
-        for i, pdf_name in enumerate(pdf_files, start=1):
-            status_text.text(f"Processing: {pdf_name} ({i}/{total_files})")
-            try:
-                pdf_bytes = z.read(pdf_name)
-                text = extract_text_from_first_page(BytesIO(pdf_bytes))
-                doc_type = detect_document_type(text)
-                if doc_type is None:
-                    st.warning(f"Unknown document type: {pdf_name}")
-                    continue
+        # Simulate progress (only visual)
+        total_steps = 5
+        for step in range(total_steps):
+            time.sleep(0.1)
+            progress_bar.progress((step + 1) / total_steps)
 
-                data = extract_data_by_type(text, doc_type)
-                data["Source File"] = pdf_name
+        # Actual processing (cached)
+        all_data_type_1, all_data_type_2 = process_zip_file(uploaded_bytes)
 
-                if doc_type == "type_1":
-                    all_data_type_1.append(data)
-                else:
-                    all_data_type_2.append(data)
-
-            except Exception as e:
-                st.error(f"Error processing {pdf_name}: {e}")
-            
-            progress_bar.progress(i / total_files)
-            time.sleep(0.05)  # smooth visual update
-
-        status_text.text("Processing complete!")
         progress_bar.empty()
+        status_text.text("Processing complete!")
 
-    # Show preview tables and download buttons
+        st.session_state.processed_data = (all_data_type_1, all_data_type_2)
+    else:
+        # Reuse cached results if same file
+        all_data_type_1, all_data_type_2 = st.session_state.processed_data
+
+    # --- Display results ---
     if all_data_type_1:
         st.subheader("Preview: Type 1 PDFs")
         df1 = pd.DataFrame(all_data_type_1)
@@ -151,7 +170,7 @@ if uploaded_zip:
             "Download Type 1 Excel",
             data=buffer1,
             file_name="inspection_summary_type_1.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
 
     if all_data_type_2:
@@ -165,7 +184,7 @@ if uploaded_zip:
             "Download Type 2 Excel",
             data=buffer2,
             file_name="inspection_summary_type_2.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
 
     if not all_data_type_1 and not all_data_type_2:
